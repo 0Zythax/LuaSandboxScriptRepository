@@ -4,18 +4,18 @@ animation.__index = animation;
 
 function animation.new(source)
 	local self = setmetatable({}, animation);
-	
+
 	self.sequence = typeof(source) == 'table' and source or require(source);
-	
+
 	self.playing = false;
 	self.looped = false;
 	self.animationSpeed = 1;
 	self.tweeningEnabled = true;
-	
+
 	self.keyframe = 1;
 	self.lastKeyframe = 1;
 	self.animator = nil;
-	
+
 	return self;
 end
 
@@ -41,7 +41,7 @@ function animation:changeSpeed(newSpeed)
 	end
 end
 
-function animation:looped(toggle)
+function animation:loop(toggle)
 	if not self.animator then warn("No animator is handling this Animation!") end;
 	self.looped = toggle;
 end
@@ -51,16 +51,16 @@ animator.__index = animator;
 
 function animator.new(character : Model)
 	local self = setmetatable({}, animator);
-	
+
 	self.character = character;
 	self.humanoid = self.character:WaitForChild('Humanoid', 5);
-	
+
 	self.defaultC0 = {};
 	self.joints = {};
 	self.tweens = {};
-	
+
 	self.currentAnimation = nil;
-	
+
 	self:initalise();
 	return self;
 end
@@ -92,18 +92,18 @@ function animator:playAnimation(animation)
 	if self.currentAnimation ~= nil then
 		self:stopPlayingAnimations()
 	end
-	
+
 	self:toggleAnimateScript(false);
 	self.currentAnimation = animation;
 	self.currentAnimation.animator = self;
 	self.currentAnimation.playing = true;
-	
+
 	self.currentAnimation.thread = task.spawn(function()
 		while self.currentAnimation.playing do
 			local actualKeyframe = self.currentAnimation.sequence[self.currentAnimation.keyframe];
 			local actualLastKeyframe = self.currentAnimation.sequence[self.currentAnimation.lastKeyframe];
-			local keyframeTime = (actualKeyframe.tm - actualLastKeyframe.tm) * self.currentAnimation.animationSpeed;
-			
+			local keyframeTime = (actualKeyframe.tm - actualLastKeyframe.tm) * (1 / self.currentAnimation.animationSpeed);
+
 			for jointName, jointMovementData in next, actualKeyframe do
 				local joint = self.joints[jointName];
 				local defaultC0 = self.defaultC0[jointName];
@@ -112,8 +112,10 @@ function animator:playAnimation(animation)
 					if not self.currentAnimation.tweeningEnabled then
 						joint.C0 = defaultC0 * jointMovementData.cf;
 					else
-						local tween = tweenService:Create(joint, TweenInfo.new(keyframeTime, Enum.EasingStyle:FromName(jointMovementData.es)), Enum.EasingDirection:FromName(jointMovementData.ed), {
-							['C0'] = defaultC0 * jointMovementData.cf;
+						jointMovementData.es = jointMovementData.es or "Linear";
+						jointMovementData.ed = jointMovementData.ed or "In";
+						local tween = tweenService:Create(joint, TweenInfo.new(keyframeTime, Enum.EasingStyle:FromName(jointMovementData.es), Enum.EasingDirection:FromName(jointMovementData.ed)), {
+							C0 = defaultC0 * jointMovementData.cf;
 						});
 						table.insert(self.tweens, tween);
 						tween:Play();
@@ -136,7 +138,7 @@ function animator:playAnimation(animation)
 				break;
 			end
 		end
-		
+
 		self:stopPlayingAnimations();
 	end)
 end
@@ -155,7 +157,7 @@ function animator:stopPlayingAnimations()
 			end)
 			self.currentAnimation.thread = nil;
 		end
-		
+
 		self.currentAnimation.animator = nil;
 		self.currentAnimation = nil;
 	end
