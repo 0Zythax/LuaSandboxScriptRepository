@@ -17,7 +17,6 @@ local targetCharacter;
 
 local fakeChatConnections = {};
 local playerChattedConnections = {};
-local emperorChats = {};
 
 if targetPlayer == nil then warn(`{targetPlayer} does not exist`) return end;
 targetCharacter = targetPlayer.Character or targetPlayer.CharacterAdded:Wait();
